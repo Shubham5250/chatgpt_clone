@@ -47,6 +47,58 @@ exports.chat = async (req, res) => {
         messages: [],
       });
     }
+    const { model } = req.body;
+    const isImageOnly = imageUrl && (!message || message.trim() === "");
+
+    if (isImageOnly && model !== "gpt-4o") {
+      const reply = {
+        role: "assistant",
+        content: "Use GPT-4o to get responses for image input.",
+      };
+      conversation.messages.push({
+        role: "user",
+        content: "",
+        imageUrl,
+      });
+      conversation.messages.push(reply);
+
+      await conversation.save();
+      return res.json({
+        reply: reply.content,
+        conversationId: conversation._id,
+        title: conversation.title || "Image Uploaded",
+      });
+    }
+
+    const messages = [];
+
+    if (isImageOnly) {
+      messages.push({
+        role: "user",
+        content: [
+          {
+            type: "image_url",
+            image_url: { url: imageUrl },
+          },
+        ],
+      });
+    } else if (message && imageUrl) {
+      messages.push({
+        role: "user",
+        content: [
+          { type: "text", text: message },
+          {
+            type: "image_url",
+            image_url: { url: imageUrl },
+          },
+        ],
+      });
+    } else {
+      messages.push({
+        role: "user",
+        content: message,
+      });
+    }
 
     conversation.messages.push({
       role: "user",
@@ -54,33 +106,14 @@ exports.chat = async (req, res) => {
       imageUrl,
     });
 
-    if (imageUrl && (!message || message.trim() === "")) {
-      const reply = {
-        role: "assistant",
-        content:
-          "Use different model to get the contextual responses for images/files.",
-      };
-      conversation.messages.push(reply);
-
-      if (conversation.messages.length === 2 && !title) {
-        conversation.title = "Image Uploaded";
-      }
-
-      await conversation.save();
-      return res.json({
-        reply: reply.content,
-        conversationId: conversation._id,
-        title: conversation.title,
-      });
-    }
-    const { model } = req.body;
     console.log("Model received from frontend:", model);
     const response = await openai.chat.completions.create({
       model: model || "gpt-4.1-nano", // fallback to default
-      messages: conversation.messages,
+      messages: messages,
     });
 
     const reply = response.choices[0].message;
+    console.log("AI Responded: ", reply);
     conversation.messages.push(reply);
 
     if (conversation.messages.length === 2 && !title) {

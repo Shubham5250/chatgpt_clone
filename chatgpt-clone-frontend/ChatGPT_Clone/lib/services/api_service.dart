@@ -29,7 +29,6 @@ class ApiService {
     }
   }
 
-  // Get messages for a specific conversation
   Future<List<Message>> getChatMessages(String conversationId) async {
     try {
       final response = await _dio.get('/api/conversations/$conversationId/messages');
@@ -42,7 +41,7 @@ class ApiService {
     }
   }
 
-  // Send message to AI and get response
+
   Future<Map<String, dynamic>> sendMessage({
     required String userId,
     required String message,
@@ -57,15 +56,10 @@ class ApiService {
         'model': model,
       };
 
-
       if (conversationId != null) {
         requestData['conversationId'] = conversationId;
       }
 
-
-      // if (imagePath != null) {
-      //   requestData['image'] = await MultipartFile.fromFile(imagePath);
-      // }
       if (imagePath != null) {
         requestData['imageUrl'] = imagePath;
       }
@@ -86,6 +80,7 @@ class ApiService {
           'role': 'assistant',
           'timestamp': DateTime.now().toIso8601String(),
         },
+        'infoMessage': response.data['infoMessage'],
         'updatedAt': DateTime.now().toIso8601String(),
       };
     } on DioException catch (e) {
@@ -193,27 +188,5 @@ Future<Chat> createNewChat(String userId) async {
       throw Exception('Image upload failed: ${e.toString()}');
     }
   }
-  // Future<String?> uploadImage(File imageFile) async {
-  //   try {
-  //     final formData = FormData.fromMap({
-  //       'image': await MultipartFile.fromFile(
-  //         imageFile.path,
-  //         filename: 'upload_${DateTime.now().millisecondsSinceEpoch}.jpg',
-  //       ),
-  //     });
-  //
-  //     final response = await _dio.post(
-  //       '/api/upload',
-  //       data: formData,
-  //       options: Options(
-  //         contentType: 'multipart/form-data',
-  //       ),
-  //     );
-  //
-  //     return response.data['url'] as String;
-  //   } catch (e) {
-  //     print('Image upload error: $e');
-  //     return null;
-  //   }
-  // }
+
 }

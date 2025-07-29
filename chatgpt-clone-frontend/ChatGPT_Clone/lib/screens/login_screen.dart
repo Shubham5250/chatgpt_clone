@@ -90,7 +90,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 60),
               
-              // Welcome Text
               const Text(
                 'Welcome!',
                 style: TextStyle(
@@ -110,7 +109,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 60),
               
-              // Google Sign In Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -145,7 +143,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               
               const SizedBox(height: 40),
               
-              // Features
               const Text(
                 'Features:',
                 style: TextStyle(

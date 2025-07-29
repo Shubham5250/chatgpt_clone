@@ -105,6 +105,7 @@ class _MessageActionBarState extends ConsumerState<MessageActionBar> {
       String tempSelected = selectedModel ?? 'gpt-4.1-nano';
       final modelOptions = [
         'gpt-4.1-nano',
+        'gpt-4o',
         'gpt-4.1-turbo',
         'gpt-4.1-pro',
         'gpt-3.5-turbo',

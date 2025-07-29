@@ -15,6 +15,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String selectedModel = 'gpt-4.1-nano';
   final List<String> modelOptions = [
     'gpt-4.1-nano',
+    'gpt-4o',
     'gpt-4.1-turbo',
     'gpt-4.1-pro',
     'gpt-3.5-turbo',
@@ -34,7 +35,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       backgroundColor: Colors.black,
       body: ListView(
         children: [
-          // User info
           ListTile(
             leading: CircleAvatar(
               backgroundColor: AppColors.userBubbleLight,
@@ -55,14 +55,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const Divider(color: Colors.grey),
-          // Phone number
           ListTile(
             leading: const Icon(Icons.phone, color: Colors.white),
             title: const Text('Phone Number', style: TextStyle(color: Colors.white)),
             subtitle: Text(phoneNumber, style: const TextStyle(color: Colors.grey)),
           ),
           const Divider(color: Colors.grey),
-          // Model selection
           ListTile(
             leading: const Icon(Icons.memory, color: Colors.white),
             title: const Text('Model', style: TextStyle(color: Colors.white)),
@@ -109,7 +107,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
           ),
           const Divider(color: Colors.grey),
-          // Logout option
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.redAccent),
             title: const Text('Logout', style: TextStyle(color: Colors.redAccent)),

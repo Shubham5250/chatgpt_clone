@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shimmer/shimmer.dart';
 import '../models/chat.dart';
 import '../providers/chat_provider.dart';
 import '../constants/colors.dart';
@@ -13,6 +14,7 @@ import '../models/message.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import '../providers/message_actions_provider.dart';
 
 
 /// SCREEN WHERE USER INTERACTS WITH AI MODEL
@@ -443,7 +445,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with SingleTickerProvid
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      if (message.imageUrl != null)
+                                      if (message.isUploading)
+                                        Container(
+                                          margin: const EdgeInsets.only(bottom: 8),
+                                          width: 200,
+                                          height: 200,
+                                          child: Stack(
+                                            children: [
+                                              Shimmer.fromColors(
+                                                baseColor: Colors.grey[800]!,
+                                                highlightColor: Colors.grey[700]!,
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey[800],
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                ),
+                                              ),
+                                              const Center(
+                                                child: CircularProgressIndicator(
+                                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      else if (message.imageUrl != null)
                                         Container(
                                           margin: const EdgeInsets.only(bottom: 8),
                                           child: ClipRRect(
@@ -458,15 +485,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with SingleTickerProvid
                                                   width: 200,
                                                   height: 200,
                                                   color: Colors.grey[800],
-                                                  child: const Icon(
-                                                    Icons.image_not_supported,
-                                                    color: Colors.white,
-                                                  ),
+                                                  child: const Icon(Icons.image_not_supported, color: Colors.white),
                                                 );
                                               },
                                             ),
                                           ),
                                         ),
+
+
+
                                       Text(
                                         message.content,
                                         style: const TextStyle(
@@ -787,88 +814,69 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with SingleTickerProvid
     }
   }
 
-  // when image is to be sent
   Future<void> _handleImageSend(String filePath) async {
-    String? uploadedImageUrl;
+    final model = ref.read(selectedModelProvider);
+    final chatNotifier = ref.read(chatProvider.notifier);
+    final uuid = const Uuid();
+
+    final shimmerMessageId = uuid.v4();
+
     try {
-      setState(() {
-        _isGeneratingResponse = true;
-      });
-      final apiService = ref.read(apiServiceProvider);
-      final userId = ref.read(chatProvider.notifier).userId;
-      uploadedImageUrl = await apiService.uploadImage(filePath);
-
-      // 1. Optimistic UI: Add image message
-      final chats = ref.read(chatProvider);
-      if (chats.isNotEmpty) {
-        final currentChat = chats.firstWhere((c) => c.id == selectedChatId, orElse: () => chats.first);
-        currentChat.messages.add(
-          Message(
-            content: "",
-            imageUrl: uploadedImageUrl,
-            role: "user",
-            status: MessageStatus.sent,
-          ),
-        );
-
-        currentChat.messages.add(
-          Message(
-            content: "Use different model to get the contextual responses for images/files.",
-            imageUrl: null,
-            role: "assistant",
-            status: MessageStatus.sent,
-          ),
-        );
-        setState(() {});
-      }
-
       String? chatIdToUse = selectedChatId.isNotEmpty ? selectedChatId : null;
       if (chatIdToUse == null) {
-        await ref.read(chatProvider.notifier).createNewChat();
-        final chats = ref.read(chatProvider);
-        if (chats.isNotEmpty) {
-          setState(() {
-            chatIdToUse = chats.first.id;
-            selectedChatId = chatIdToUse!;
-          });
+        await chatNotifier.createNewChat();
+        final updatedChats = ref.read(chatProvider);
+        if (updatedChats.isNotEmpty) {
+          chatIdToUse = updatedChats.first.id;
+          selectedChatId = chatIdToUse!;
         }
       }
-      if (chatIdToUse != null && chatIdToUse!.isNotEmpty) {
-        await ref.read(chatProvider.notifier).sendMessage(
-          conversationId: chatIdToUse!,
-          message: '',
-          imagePath: uploadedImageUrl,
-        );
-      }
+
+      await chatNotifier.addTemporaryShimmerMessage(
+        chatId: chatIdToUse!,
+        message: Message(
+          id: shimmerMessageId,
+          content: '',
+          imageUrl: null,
+          role: 'user',
+          isUploading: true,
+          timestamp: DateTime.now(),
+        ),
+      );
+
+      final uploadedImageUrl = await ref.read(apiServiceProvider).uploadImage(filePath);
+
+      await chatNotifier.replaceMessage(
+        chatId: chatIdToUse,
+        oldMessageId: shimmerMessageId,
+        newMessage: Message(
+          id: uuid.v4(),
+          content: '',
+          imageUrl: uploadedImageUrl,
+          role: 'user',
+          timestamp: DateTime.now(),
+        ),
+      );
+
+      // if (model != 'gpt-4o') {
+      //   await chatNotifier.addMessage(
+      //     chatId: chatIdToUse,
+      //     message: Message(
+      //       id: uuid.v4(),
+      //       content: 'Analysing image...',
+      //       role: 'assistant',
+      //       timestamp: DateTime.now(),
+      //     ),
+      //   );
+      // }
+
+      await chatNotifier.sendMessage(
+        conversationId: chatIdToUse,
+        message: '',
+        imagePath: uploadedImageUrl,
+      );
     } catch (e) {
-      // Optionally show error
-    } finally {
-      setState(() {
-        _isGeneratingResponse = false;
-      });
+      print('Error sending image message: $e');
     }
   }
-  // Future<void> _handleImageSend(String filePath) async {
-  //   try {
-  //     setState(() => _isGeneratingResponse = true);
-  //
-  //     // 1. Upload image first
-  //     final uploadedImageUrl = await ref.read(apiServiceProvider).uploadImage(File(filePath));
-  //
-  //     // 2. Send message with image URL
-  //     await ref.read(chatProvider.notifier).sendMessage(
-  //       conversationId: selectedChatId,
-  //       message: '', // Empty message for image-only
-  //       imagePath: uploadedImageUrl,
-  //     );
-  //
-  //   } catch (e) {
-  //     // Show error to user
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(content: Text('Failed to send image: ${e.toString()}')),
-  //     );
-  //   } finally {
-  //     setState(() => _isGeneratingResponse = false);
-  //   }
-  // }
 }

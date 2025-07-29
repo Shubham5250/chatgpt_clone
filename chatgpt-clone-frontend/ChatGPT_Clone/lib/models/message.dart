@@ -9,6 +9,7 @@ class Message {
   final MessageStatus status;
   final String? imageUrl;
   static final Uuid _uuid = const Uuid();
+  final bool isUploading;
 
   Message({
     String? id,
@@ -17,6 +18,7 @@ class Message {
     DateTime? timestamp,
     this.status = MessageStatus.sent,
     this.imageUrl,
+    this.isUploading = false,
   }) :
         id = id ?? _uuid.v4(),
         timestamp = timestamp ?? DateTime.now();

@@ -16,10 +16,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
+
+    await dotenv.load(fileName: '.env');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    await dotenv.load(fileName: '.env');
     runApp(const ProviderScope(child: MyApp()));
   } catch (e) {
     runApp(const MaterialApp(

@@ -27,6 +27,7 @@ class ChatNotifier extends StateNotifier<List<Chat>> {
 
   // for selected model
   String get selectedModel => ref.read(selectedModelProvider);
+  ApiService get apiService => _apiService;
 
   bool get isLoading => _isLoading;
 
@@ -43,26 +44,23 @@ class ChatNotifier extends StateNotifier<List<Chat>> {
   }
 
   // registers new chat -
-  // Future<void> createNewChat() async {
-  //   try {
-  //     final newChat = await _apiService.createNewChat(userId);
-  //     state = [newChat, ...state];
-  //   } catch (e) {
-  //     throw Exception('Failed to create new chat: $e');
-  //   }
-  // }
-
+  Future<void> createNewChat() async {
+    try {
+      final newChat = await _apiService.createNewChat(userId);
+      state = [newChat, ...state];
+    } catch (e) {
+      throw Exception('Failed to create new chat: $e');
+    }
+  }
 
   Future<void> sendMessage({
     required String conversationId,
     required String message,
     String? imagePath,
-
   }) async {
-    late Message optimisticMessage;
+    Message? optimisticMessage;
 
     try {
-
       bool addOptimistic = message.trim().isNotEmpty && (imagePath == null);
       if (addOptimistic) {
         optimisticMessage = Message(
@@ -77,7 +75,7 @@ class ChatNotifier extends StateNotifier<List<Chat>> {
         state = [
           ...state.map((chat) => chat.id == conversationId
               ? chat.copyWith(
-            messages: [...chat.messages, optimisticMessage],
+            messages: [...chat.messages, optimisticMessage!],
             updatedAt: DateTime.now(),
           )
               : chat),
@@ -96,10 +94,7 @@ class ChatNotifier extends StateNotifier<List<Chat>> {
         }
       }
 
-
       final selectedModel = ref.read(selectedModelProvider);
-      print('Selected model: $selectedModel');
-
       final response = await _apiService.sendMessage(
         userId: userId,
         message: message,
@@ -110,6 +105,29 @@ class ChatNotifier extends StateNotifier<List<Chat>> {
 
       final serverMessage = Message.fromJson(response['userMessage']);
       final aiMessage = Message.fromJson(response['aiMessage']);
+      final String? info = response['infoMessage'];
+
+      final chat = state.firstWhere((c) => c.id == response['conversationId']);
+      final alreadyHasImage = serverMessage.imageUrl != null &&
+          chat.messages.any((m) => m.imageUrl == serverMessage.imageUrl);
+
+      final List<Message> newMessages = [];
+
+      if (!alreadyHasImage) {
+        newMessages.add(serverMessage);
+      }
+
+      if (info != null && info.trim().isNotEmpty) {
+        newMessages.add(
+          Message(
+            id: _uuid.v4(),
+            content: info,
+            role: 'system',
+            timestamp: DateTime.now(),
+          ),
+        );
+      }
+      newMessages.add(aiMessage);
 
       state = [
         ...state.map((chat) {
@@ -118,9 +136,9 @@ class ChatNotifier extends StateNotifier<List<Chat>> {
               id: response['conversationId'],
               title: response['title'],
               messages: [
-                ...chat.messages.where((m) => m.id != optimisticMessage.id),
-                serverMessage,
-                aiMessage,
+                ...chat.messages.where(
+                        (m) => optimisticMessage == null || m.id != optimisticMessage.id),
+                ...newMessages,
               ],
               updatedAt: DateTime.parse(response['updatedAt']),
             );
@@ -128,13 +146,12 @@ class ChatNotifier extends StateNotifier<List<Chat>> {
           return chat;
         }),
       ];
-
     } catch (e) {
       state = [
         ...state.map((chat) => chat.id == conversationId
             ? chat.copyWith(
           messages: chat.messages
-              .where((m) => m.id != optimisticMessage.id)
+              .where((m) => optimisticMessage == null || m.id != optimisticMessage.id)
               .toList(),
         )
             : chat),
@@ -143,6 +160,65 @@ class ChatNotifier extends StateNotifier<List<Chat>> {
     }
   }
 
+
+  Future<void> addTemporaryShimmerMessage({required String chatId, required Message message}) async {
+    state = [
+      for (final chat in state)
+        if (chat.id == chatId)
+          chat.copyWith(messages: [...chat.messages, message])
+        else
+          chat,
+    ];
+  }
+
+  Future<void> replaceMessage({
+    required String chatId,
+    required String oldMessageId,
+    required Message newMessage,
+  }) async {
+    state = [
+      for (final chat in state)
+        if (chat.id == chatId)
+          chat.copyWith(
+            messages: [
+              for (final msg in chat.messages)
+                if (msg.id == oldMessageId) newMessage else msg
+            ],
+          )
+        else
+          chat,
+    ];
+  }
+
+  Future<void> addMessage({required String chatId, required Message message}) async {
+    state = [
+      for (final chat in state)
+        if (chat.id == chatId)
+          chat.copyWith(messages: [...chat.messages, message])
+        else
+          chat,
+    ];
+  }
+
+
+
+  Future<void> loadMessages(String conversationId) async {
+    try {
+      final messages = await _apiService.getChatMessages(conversationId);
+      state = state.map((chat) {
+        return chat.id == conversationId
+            ? chat.copyWith(messages: messages)
+            : chat;
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to load messages: $e');
+    }
+  }
+
+
+  Future<void> refreshChats() async {
+    await _loadChats();
+  }
 
   Future<void> deleteChat(String conversationId) async {
     try {
