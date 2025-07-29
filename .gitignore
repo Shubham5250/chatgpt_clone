@@ -1,0 +1,11 @@
+chatgpt-clone-backend/.env
+chatgpt-clone-backend/node_modules/
+
+
+chatgpt-clone-frontend/ChatGPT_Clone/.env
+chatgpt-clone-frontend/ChatGPT_Clone/android/app/google-services.json
+chatgpt-clone-frontend/ChatGPT_Clone/ios/GoogleService-Info.plist
+chatgpt-clone-frontend/ChatGPT_Clone/ios_backup/GoogleService-Info.plist
+chatgpt-clone-frontend/ChatGPT_Clone/build/
+chatgpt-clone-frontend/ChatGPT_Clone/.dart_tool/
+chatgpt-clone-frontend/ChatGPT_Clone/.flutter-plugins
